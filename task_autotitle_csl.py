@@ -26,10 +26,11 @@ batch_size = 16
 epochs = 40
 
 # 模型路径
-config_path = '/root/kg/bert/mt5/mt5_base/mt5_base_config.json'
-checkpoint_path = '/root/kg/bert/mt5/mt5_base/model.ckpt-1000000'
-spm_path = '/root/kg/bert/mt5/sentencepiece_cn.model'
-keep_tokens_path = '/root/kg/bert/mt5/sentencepiece_cn_keep_tokens.json'
+folder = './mt5/'
+config_path = folder + 'mt5_small_config.json'
+checkpoint_path = folder + 'mt5_small/model.ckpt-1000000'
+spm_path = folder + 'sentencepiece_cn.model'
+keep_tokens_path = folder + 'sentencepiece_cn_keep_tokens.json'
 
 
 def load_data(filename):
@@ -42,9 +43,10 @@ def load_data(filename):
 
 
 # 加载数据集
-train_data = load_data('/root/csl/train.tsv')
-valid_data = load_data('/root/csl/val.tsv')
-test_data = load_data('/root/csl/test.tsv')
+data_folder = './csl_summary_dataset/'
+train_data = load_data(data_folder + 'train.tsv')
+valid_data = load_data(data_folder + 'val.tsv')
+test_data = load_data(data_folder + 'test.tsv')
 
 # 加载分词器
 tokenizer = SpTokenizer(spm_path, token_start=None, token_end='</s>')
@@ -54,6 +56,7 @@ keep_tokens = json.load(open(keep_tokens_path))
 class data_generator(DataGenerator):
     """数据生成器
     """
+
     def __iter__(self, random=False):
         batch_c_token_ids, batch_t_token_ids = [], []
         for is_end, (title, content) in self.sample(random):
@@ -71,6 +74,7 @@ class data_generator(DataGenerator):
 class CrossEntropy(Loss):
     """交叉熵作为loss，并mask掉输入部分
     """
+
     def compute_loss(self, inputs, mask=None):
         y_true, y_pred = inputs
         y_true = y_true[:, 1:]  # 目标token_ids
@@ -104,6 +108,7 @@ model.compile(optimizer=Adam(2e-4))
 class AutoTitle(AutoRegressiveDecoder):
     """seq2seq解码器
     """
+
     @AutoRegressiveDecoder.wraps(default_rtype='probas')
     def predict(self, inputs, output_ids, states):
         c_encoded = inputs[0]
@@ -123,6 +128,7 @@ autotitle = AutoTitle(start_id=0, end_id=tokenizer._token_end_id, maxlen=32)
 class Evaluator(keras.callbacks.Callback):
     """评估与保存
     """
+
     def __init__(self):
         self.rouge = Rouge()
         self.smooth = SmoothingFunction().method1
@@ -141,8 +147,14 @@ class Evaluator(keras.callbacks.Callback):
         rouge_1, rouge_2, rouge_l, bleu = 0, 0, 0, 0
         for title, content in tqdm(data):
             total += 1
+            pred_title = autotitle.generate(content, topk)
+            print()
+            print(title)
+            print(pred_title)
+            print(content)
+            print('')
             title = ' '.join(title).lower()
-            pred_title = ' '.join(autotitle.generate(content, topk)).lower()
+            pred_title = ' '.join(pred_title).lower()
             if pred_title.strip():
                 scores = self.rouge.get_scores(hyps=pred_title, refs=title)
                 rouge_1 += scores[0]['rouge-1']['f']
@@ -165,8 +177,8 @@ class Evaluator(keras.callbacks.Callback):
         }
 
 
-if __name__ == '__main__':
-
+def main1():
+    '''训练模型'''
     evaluator = Evaluator()
     train_generator = data_generator(train_data, batch_size)
 
@@ -177,6 +189,20 @@ if __name__ == '__main__':
         callbacks=[evaluator]
     )
 
-else:
 
+def main2():
+    '''加载权重'''
     model.load_weights('./best_model.weights')
+
+
+def main3():
+    '''加载权重，使用文件进行预测'''
+    model.load_weights('./best_model.weights')
+
+    evaluator = Evaluator()
+    metrics = evaluator.evaluate(valid_data)  # 评测模型
+    print(metrics)
+
+
+if __name__ == '__main__':
+    main3()
