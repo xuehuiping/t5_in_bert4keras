@@ -47,6 +47,11 @@ data_folder = './csl_summary_dataset/'
 train_data = load_data(data_folder + 'train.tsv')
 valid_data = load_data(data_folder + 'val.tsv')
 test_data = load_data(data_folder + 'test.tsv')
+qq_insurance_data = load_data('qq_insurance/qq_insurance.tsv')
+qq_insurance_extract_data = load_data('qq_insurance/qq_insurance_extract.tsv')
+
+train_data2 = load_data('qq_insurance2/urls2_result.tsv')
+valid_data2 = load_data('qq_insurance2/valid.tsv')
 
 # 加载分词器
 tokenizer = SpTokenizer(spm_path, token_start=None, token_end='</s>')
@@ -204,5 +209,31 @@ def main3():
     print(metrics)
 
 
+def main4():
+    '''加载权重，使用文件进行预测'''
+    model.load_weights('./best_model.weights')
+
+    evaluator = Evaluator()
+    metrics = evaluator.evaluate(qq_insurance_data)  # 评测模型
+    print(metrics)
+
+
+def main5():
+    '''加载权重，使用文件进行预测'''
+    model.load_weights('./best_model.weights')
+
+    evaluator = Evaluator()
+    metrics = evaluator.evaluate(qq_insurance_extract_data)  # 评测模型
+    print(metrics)
+
+
+def main6():
+    pass
+
+
+def main7():
+    pass
+
+
 if __name__ == '__main__':
-    main3()
+    main5()
